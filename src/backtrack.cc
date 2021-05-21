@@ -6,6 +6,7 @@
 #include "backtrack.h"
 #include <vector>
 #include <queue>
+#include <functional>
 #include <stdlib.h> // for exit(0)
 
 Backtrack::Backtrack() {}
@@ -17,7 +18,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   // little bit of initialization
   size_t N = query.GetNumVertices();
   size_t M = query.GetNumEdges();
-  std::cout << "t " << N << endl;
+  std::cout << "t " << N << std::endl;
 
   /////
   // Step 1 : build DAG from query graph, with BFS
@@ -92,19 +93,77 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   }
   std::vector<int> indeg(N);
   for(Vertex u = 0; u < N; u++) indeg[u] = redg[u].size();
-  std::vector<int> extendable = {root};
+  std::vector<Vertex> extendable = {root};
   std::vector<Vertex> embed(N);
   size_t count = 0;
 
-  const function<void()> btk = [&]() {
-    if(extentable.empty()) { // found a match
-      cout << "a ";
-      for(const auto &v : embed) cout << v << " ";
-      cout << endl;
+  const std::function<void()> btk = [&]() {
+    if(extendable.empty()) { // found a match
+      std::cout << "a ";
+      for(const auto &v : embed) std::cout << v << " ";
+      std::cout << std::endl;
       count++;
       if(count == 100000) exit(0);
       return;
     }
+    
+    // select u (in query graph) for next match
+    size_t cur_idx = 0;
+    for(size_t i = 1; i < extendable.size(); i++) {
+      if(cand[extendable[cur_idx]].size() > cand[extendable[i]].size()) 
+        cur_idx = i;
+    }
+    Vertex cur = extendable[cur_idx];
+    if(cand[cur].empty()) return; // there is no answers.
+
+    // update extendable lists
+    extendable.erase(extendable.begin() + cur_idx);
+    size_t old_sz = extendable.size();
+    for(const auto &v : edg[cur]) {
+      indeg[v]--;
+      if(indeg[v] == 0)
+        extendable.push_back(v);
+    }
+    
+    // iterate for each current candidates
+    for(const auto &v : cand[cur]) {
+      // set new embedding
+      embed[cur] = v;
+
+      // update candidate lists
+      bool valid = true; // check if one of candidate set become empty
+      std::vector<std::pair<Vertex, std::vector<Vertex>>> restore_list;
+      for(const auto &w : edg[cur]) {
+        std::vector<Vertex> remove_list;
+        if(!cand[w].empty()) {
+          for(size_t i = cand[w].size() - 1; i >= 0; i--) {
+            if(!data.IsNeighbor(v, cand[w][i])) {
+              remove_list.push_back(cand[w][i]);
+              cand[v].erase(cand[w].begin() + i);
+            }
+          }
+        }
+        restore_list.emplace_back(w, remove_list);
+        if(cand[w].empty()) {
+          valid = false;
+          break;
+        }
+      }
+
+      // recursive call
+      if(valid) btk();
+
+      // restore candidate lists
+      for(const auto &p : restore_list) {
+        cand[p.first].insert(cand[p.first].end(), p.second.begin(), p.second.end());
+      }
+    }
+
+    // restore extendable lists
+    extendable.resize(old_sz);
+    extendable.insert(extendable.begin() + cur_idx, cur);
+    for(const auto &v : edg[cur])
+      indeg[v]++;
   };
   btk();
 }
