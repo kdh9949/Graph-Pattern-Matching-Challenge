@@ -90,19 +90,17 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
   // prepare for backtracking
   std::vector<std::vector<Vertex>> cand(N);
-  std::vector<std::vector<Vertex>> inv_cand(DN);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     cand[u].resize(cs.GetCandidateSize(u));
-    for(size_t i = 0; i < cand[u].size(); i++) {
+    for(size_t i = 0; i < cand[u].size(); i++)
       cand[u][i] = cs.GetCandidate(u, i);
-      inv_cand[cand[u][i]].push_back(u);
-    }
   }
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
   std::vector<Vertex> extendable = {root};
-  std::vector<Vertex> embed(N);
+  std::vector<Vertex> embed(N, -1);
+  std::vector<bool> visited(DN);
   size_t count = 0;
 
   const std::function<void()> btk = [&]() {
@@ -135,8 +133,12 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     
     // iterate for each current candidates
     for(const auto &v : cand[cur]) {
+      // check if already used
+      if(visited[v]) continue;
+
       // set new embedding
       embed[cur] = v;
+      visited[v] = true;
 
       // update candidate lists
       bool valid = true; // check if one of candidate set become empty
@@ -156,24 +158,14 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           valid = false;
           break;
         }
-      }/*
-      for(const auto &w : inv_cand[v]) {
-        const auto it = find(cand[w].begin(), cand[w].end(), v);
-        if(it != cand[w].end() && *it == v) {
-          cand[w].erase(it);
-          std::vector<Vertex> vv = {v};
-          restore_list.emplace_back(w, vv);
-          if(cand[w].empty()) {
-            valid = false;
-            break;
-          }
-        }
-      }*/
+      }
 
       // recursive call
       if(valid) btk();
 
-      // restore candidate lists
+      // restore changes
+      embed[cur] = -1;
+      visited[v] = false;
       for(const auto &p : restore_list) {
         cand[p.first].insert(cand[p.first].end(), p.second.begin(), p.second.end());
       }

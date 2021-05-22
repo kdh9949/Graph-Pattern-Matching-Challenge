@@ -1,4 +1,5 @@
 #include "graph.h"
+#include <algorithm>
 #include <utility>
 #include <string>
 #include <fstream>
@@ -28,6 +29,11 @@ std::pair<size_t, size_t> score(const Graph &data, const Graph &query, const std
     }
     if(!valid) continue;
     
+    auto embed_s = embed;
+    std::sort(embed_s.begin(), embed_s.end());
+    if(std::unique(embed_s.begin(), embed_s.end()) != embed_s.end())
+      valid = false;
+
     for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
       if(query.GetLabel(u) != data.GetLabel(embed[u])) {
         valid = false;
@@ -48,5 +54,6 @@ std::pair<size_t, size_t> score(const Graph &data, const Graph &query, const std
     if(valid) ret.first++;
     else ret.second++;
   }
+
   return ret;
 }
