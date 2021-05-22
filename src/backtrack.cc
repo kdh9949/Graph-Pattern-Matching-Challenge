@@ -19,7 +19,6 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   // little bit of initialization
   size_t N = query.GetNumVertices();
   size_t DN = data.GetNumVertices();
-  size_t M = query.GetNumEdges();
   std::cout << "t " << N << std::endl;
 
   /////
@@ -157,7 +156,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           valid = false;
           break;
         }
-      }
+      }/*
       for(const auto &w : inv_cand[v]) {
         const auto it = find(cand[w].begin(), cand[w].end(), v);
         if(it != cand[w].end() && *it == v) {
@@ -169,7 +168,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
             break;
           }
         }
-      }
+      }*/
 
       // recursive call
       if(valid) btk();
