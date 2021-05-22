@@ -67,7 +67,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       bool is_forward = false;
       if(dist[u] != dist[v])
         is_forward = (dist[u] < dist[v]);
-      else if(query.GetLabel(u) != query.GetLabel(v))
+      else if(query.GetLabelFrequency(u) != query.GetLabelFrequency(v))
         is_forward = (data.GetLabelFrequency(u) < data.GetLabelFrequency(v));
       else if(query.GetDegree(u) != query.GetDegree(v))
         is_forward = (query.GetDegree(u) > query.GetDegree(v));
@@ -77,7 +77,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       if(is_forward)
         edg[u].push_back(v);
       else
-        edg[v].push_back(u);
+        redg[u].push_back(v);
     }
   }
 
@@ -89,10 +89,12 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<std::vector<Vertex>> cand(N);
   for(Vertex u = 0; u < N; u++) {
     cand[u].resize(cs.GetCandidateSize(u));
-    for(size_t i = 0; i < cand[u].size(); i++) cand[u][i] = cs.GetCandidate(u, i);
+    for(size_t i = 0; i < cand[u].size(); i++)
+      cand[u][i] = cs.GetCandidate(u, i);
   }
   std::vector<int> indeg(N);
-  for(Vertex u = 0; u < N; u++) indeg[u] = redg[u].size();
+  for(Vertex u = 0; u < N; u++)
+    indeg[u] = redg[u].size();
   std::vector<Vertex> extendable = {root};
   std::vector<Vertex> embed(N);
   size_t count = 0;
@@ -106,7 +108,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       if(count == 100000) exit(0);
       return;
     }
-    
+   
     // select u (in query graph) for next match
     size_t cur_idx = 0;
     for(size_t i = 1; i < extendable.size(); i++) {
@@ -123,7 +125,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       indeg[v]--;
       if(indeg[v] == 0)
         extendable.push_back(v);
-    }
+    } 
     
     // iterate for each current candidates
     for(const auto &v : cand[cur]) {
@@ -136,10 +138,10 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       for(const auto &w : edg[cur]) {
         std::vector<Vertex> remove_list;
         if(!cand[w].empty()) {
-          for(size_t i = cand[w].size() - 1; i >= 0; i--) {
+          for(size_t i = cand[w].size() - 1; i + 1 > 0; i--) {
             if(!data.IsNeighbor(v, cand[w][i])) {
               remove_list.push_back(cand[w][i]);
-              cand[v].erase(cand[w].begin() + i);
+              cand[w].erase(cand[w].begin() + i);
             }
           }
         }
@@ -148,7 +150,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           valid = false;
           break;
         }
-      }
+      }    
 
       // recursive call
       if(valid) btk();
