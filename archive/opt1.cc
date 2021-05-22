@@ -19,6 +19,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   // little bit of initialization
   size_t N = query.GetNumVertices();
   size_t DN = data.GetNumVertices();
+  size_t DL = data.GetNumLabels();
   std::cout << "t " << N << std::endl;
 
   /////
@@ -89,18 +90,32 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   /////
 
   // prepare for backtracking
-  std::vector<std::vector<Vertex>> cand(N);
+  std::vector<std::vector<Vertex>> i_cand(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    cand[u].resize(cs.GetCandidateSize(u));
-    for(size_t i = 0; i < cand[u].size(); i++)
-      cand[u][i] = cs.GetCandidate(u, i);
+    i_cand[u].resize(cs.GetCandidateSize(u));
+    for(size_t i = 0; i < i_cand[u].size(); i++)
+      i_cand[u][i] = cs.GetCandidate(u, i);
   }
+  std::vector<std::vector<std::vector<std::vector<Vertex>>>> v_cand(N);
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
+    v_cand[u].resize(edg[u].size());
+    for(size_t i = 0; i < v_cand[u].size(); i++) {
+      const auto &w = edg[u][i];
+      v_cand[u][i].resize(i_cand[u].size());
+      for(size_t j = 0; j < v_cand[u][i].size(); j++) {
+        const auto &t = i_cand[u][j];
+        for(const auto &v : i_cand[w])
+          if(data.IsNeighbor(t, v))
+            v_cand[u][i][j].push_back(v);
+      }
+    }
+  }
+
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
-  std::vector<Vertex> extendable = {root};
-  std::vector<Vertex> embed(N, -1);
-  std::vector<bool> visited(DN);
+  std::vector<Vertex> extendable = {root}, embed(N, -1), cand(N);
+  std::vector<bool> cand_inited(N), visited(DN);
   size_t count = 0;
 
   // actual backtracking function
