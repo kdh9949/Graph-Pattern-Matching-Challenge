@@ -6,6 +6,7 @@
 #include "backtrack.h"
 #include <vector>
 #include <queue>
+#include <algorithm>
 #include <functional>
 #include <stdlib.h> // for exit(0)
 
@@ -17,6 +18,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   
   // little bit of initialization
   size_t N = query.GetNumVertices();
+  size_t DN = data.GetNumVertices();
   size_t M = query.GetNumEdges();
   std::cout << "t " << N << std::endl;
 
@@ -27,7 +29,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   // find root
   Vertex root = -1;
   double csize_deg_ratio = 1e100; // +infinity
-  for(Vertex u = 0; u < N; u++) {
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     size_t csize = cs.GetCandidateSize(u);
     size_t deg = query.GetDegree(u);
     double cur_ratio = static_cast<double>(csize) / deg;
@@ -58,17 +60,19 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
   // build DAG
   std::vector<std::vector<Vertex>> edg(N), redg(N);
-  for(Vertex u = 0; u < N; u++) {
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     size_t st = query.GetNeighborStartOffset(u);
     size_t en = query.GetNeighborEndOffset(u);
+    Label lu = query.GetLabel(u);
     for(size_t i = st; i < en; i++) {
       Vertex v = query.GetNeighbor(i);
+      Label lv = query.GetLabel(v);
 
       bool is_forward = false;
       if(dist[u] != dist[v])
         is_forward = (dist[u] < dist[v]);
-      else if(query.GetLabelFrequency(u) != query.GetLabelFrequency(v))
-        is_forward = (data.GetLabelFrequency(u) < data.GetLabelFrequency(v));
+      else if(data.GetLabelFrequency(lu) != data.GetLabelFrequency(lv))
+        is_forward = (data.GetLabelFrequency(lu) < data.GetLabelFrequency(lv));
       else if(query.GetDegree(u) != query.GetDegree(v))
         is_forward = (query.GetDegree(u) > query.GetDegree(v));
       else
@@ -87,13 +91,16 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
   // prepare for backtracking
   std::vector<std::vector<Vertex>> cand(N);
-  for(Vertex u = 0; u < N; u++) {
+  std::vector<std::vector<Vertex>> inv_cand(DN);
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     cand[u].resize(cs.GetCandidateSize(u));
-    for(size_t i = 0; i < cand[u].size(); i++)
+    for(size_t i = 0; i < cand[u].size(); i++) {
       cand[u][i] = cs.GetCandidate(u, i);
+      inv_cand[cand[u][i]].push_back(u);
+    }
   }
-  std::vector<int> indeg(N);
-  for(Vertex u = 0; u < N; u++)
+  std::vector<size_t> indeg(N);
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
   std::vector<Vertex> extendable = {root};
   std::vector<Vertex> embed(N);
@@ -125,7 +132,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       indeg[v]--;
       if(indeg[v] == 0)
         extendable.push_back(v);
-    } 
+    }
     
     // iterate for each current candidates
     for(const auto &v : cand[cur]) {
@@ -150,7 +157,19 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           valid = false;
           break;
         }
-      }    
+      }
+      for(const auto &w : inv_cand[v]) {
+        const auto it = find(cand[w].begin(), cand[w].end(), v);
+        if(it != cand[w].end() && *it == v) {
+          cand[w].erase(it);
+          std::vector<Vertex> vv = {v};
+          restore_list.emplace_back(w, vv);
+          if(cand[w].empty()) {
+            valid = false;
+            break;
+          }
+        }
+      }
 
       // recursive call
       if(valid) btk();
