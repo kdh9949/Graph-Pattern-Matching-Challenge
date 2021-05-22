@@ -6,9 +6,10 @@ from time import time
 S = system
 
 limit = 60
-if len(sys.argv) == 2:
-  limit = int(sys.argv[1])
+if len(sys.argv) == 3:
+  limit = int(sys.argv[2])
 
+S(f'cp ../archive/{sys.argv[1]} ../src/backtrack.cc')
 S('make -C ../build')
 
 query_list = sorted(listdir('../query'))
