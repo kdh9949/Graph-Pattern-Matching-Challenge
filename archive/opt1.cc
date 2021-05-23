@@ -176,7 +176,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
         - i_cand[cur].begin()
       );
       auto &cur_v_cand = v_cand[cur][v_idx];
-      std::vector<std::vector<Vertex>> old_cand(edg[cur].size());
+      std::vector<std::vector<Vertex>> removed_cand(edg[cur].size());
       for(size_t j = 0; j < edg[cur].size(); j++) {
         Vertex w = edg[cur][j];
         if(cand_inittime[w] < 0) {
@@ -184,11 +184,14 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           cand[w].swap(cur_v_cand[j]);
         }
         else {
-          old_cand[j].swap(cand[w]);
-          for(const Vertex t : old_cand[j]) {
-            if(binary_search(cur_v_cand[j].begin(), cur_v_cand[j].end(), t))
-              cand[w].push_back(t);
+          std::vector<Vertex> new_cand;
+          for(const Vertex t : cand[w]) {
+            if(data_adj[v][t])
+              new_cand.push_back(t);
+            else
+              removed_cand[j].push_back(t);
           }
+          cand[w].swap(new_cand);
         }
       }
 
@@ -205,7 +208,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           cand[w].swap(cur_v_cand[j]);
         }
         else
-          cand[w].swap(old_cand[j]);
+          cand[w].insert(cand[w].end(), removed_cand[j].begin(), removed_cand[j].end());
       }
     }
 
