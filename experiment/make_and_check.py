@@ -16,6 +16,7 @@ query_list = sorted(listdir('../query'))
 tot_cor = 0
 tot_incor = 0
 tot_time = 0
+logf = open('log_' + sys.argv[1].split('.')[0], 'w')
 for query_name in query_list:
   base_name = query_name.split('.')[0]
   qpath = '../query/' + query_name
@@ -46,6 +47,8 @@ for query_name in query_list:
   tot_cor += cor
   tot_incor += incor
 
+  logf.write(f'{base_name:>15} : {etime - stime:>6.3f} / {cor:>6} / {incor:>6}\n')
+
 tot_cnt = len(query_list)
 print('')
 print('*********************************************')
@@ -55,3 +58,6 @@ print('')
 print(f'Average Elapsed time  : {tot_time / tot_cnt:.3f} seconds')
 print(f'Average Correct Ans   : {tot_cor / tot_cnt:.3f}')
 print(f'Average Incorrect Ans : {tot_incor / tot_cnt:.3f}')
+
+logf.write(f'TOT : time {tot_time / tot_cnt:.3f} / cor {tot_cor / tot_cnt:.3f} / incor {tot_incor / tot_cnt:.3f}\n')
+logf.close()

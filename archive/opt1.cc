@@ -19,7 +19,6 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   // little bit of initialization
   size_t N = query.GetNumVertices();
   size_t DN = data.GetNumVertices();
-  size_t DL = data.GetNumLabels();
   std::cout << "t " << N << std::endl;
 
   /////
@@ -90,23 +89,34 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   /////
 
   // prepare for backtracking
+  std::vector<std::vector<bool>> data_adj(DN, std::vector<bool>(DN));
+  for(Vertex v = 0; v < static_cast<Vertex>(DN); v++) {
+    size_t st = data.GetNeighborStartOffset(v);
+    size_t en = data.GetNeighborEndOffset(v);
+    for(size_t i = st; i < en; i++)
+      data_adj[v][data.GetNeighbor(i)] = true;
+  }
+  
   std::vector<std::vector<Vertex>> i_cand(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     i_cand[u].resize(cs.GetCandidateSize(u));
     for(size_t i = 0; i < i_cand[u].size(); i++)
       i_cand[u][i] = cs.GetCandidate(u, i);
+    std::sort(i_cand[u].begin(), i_cand[u].end());
   }
+  
   std::vector<std::vector<std::vector<std::vector<Vertex>>>> v_cand(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    v_cand[u].resize(edg[u].size());
+    v_cand[u].resize(i_cand[u].size());
     for(size_t i = 0; i < v_cand[u].size(); i++) {
-      const auto &w = edg[u][i];
-      v_cand[u][i].resize(i_cand[u].size());
+      Vertex t = i_cand[u][i];
+      v_cand[u][i].resize(edg[u].size());
       for(size_t j = 0; j < v_cand[u][i].size(); j++) {
-        const auto &t = i_cand[u][j];
-        for(const auto &v : i_cand[w])
-          if(data.IsNeighbor(t, v))
+        Vertex w = edg[u][j];
+        for(const auto v : i_cand[w])
+          if(data_adj[t][v])
             v_cand[u][i][j].push_back(v);
+        std::sort(v_cand[u][i][j].begin(), v_cand[u][i][j].end());
       }
     }
   }
@@ -114,12 +124,15 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
-  std::vector<Vertex> extendable = {root}, embed(N, -1), cand(N);
-  std::vector<bool> cand_inited(N), visited(DN);
+  std::vector<std::vector<Vertex>> cand(N);
+  std::vector<Vertex> extendable = {root}, embed(N, -1);
+  std::vector<int> cand_inittime(N, -1);
+  std::vector<bool> visited(DN);
+  cand[root] = i_cand[root];
   size_t count = 0;
 
   // actual backtracking function
-  const std::function<void()> btk = [&]() {
+  const std::function<void(int)> btk = [&](int depth) {
     if(extendable.empty()) { // found a match
       std::cout << "a ";
       for(const auto &v : embed) std::cout << v << " ";
@@ -158,32 +171,41 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
       // update candidate lists
       bool valid = true; // check if one of candidate set become empty
-      std::vector<std::pair<Vertex, std::vector<Vertex>>> restore_list;
-      for(const auto &w : edg[cur]) {
-        std::vector<Vertex> remove_list;
-        if(!cand[w].empty()) {
-          for(size_t i = cand[w].size() - 1; i + 1 > 0; i--) {
-            if(!data.IsNeighbor(v, cand[w][i])) {
-              remove_list.push_back(cand[w][i]);
-              cand[w].erase(cand[w].begin() + i);
-            }
-          }
+      size_t v_idx = size_t(
+        lower_bound(i_cand[cur].begin(), i_cand[cur].end(), v)
+        - i_cand[cur].begin()
+      );
+      auto &cur_v_cand = v_cand[cur][v_idx];
+      std::vector<std::vector<Vertex>> old_cand(edg[cur].size());
+      for(size_t j = 0; j < edg[cur].size(); j++) {
+        Vertex w = edg[cur][j];
+        if(cand_inittime[w] < 0) {
+          cand_inittime[w] = depth;
+          cand[w].swap(cur_v_cand[j]);
         }
-        restore_list.emplace_back(w, remove_list);
-        if(cand[w].empty()) {
-          valid = false;
-          break;
+        else {
+          old_cand[j].swap(cand[w]);
+          for(const Vertex t : old_cand[j]) {
+            if(binary_search(cur_v_cand[j].begin(), cur_v_cand[j].end(), t))
+              cand[w].push_back(t);
+          }
         }
       }
 
       // recursive call
-      if(valid) btk();
+      if(valid) btk(depth + 1);
 
       // restore changes
       embed[cur] = -1;
       visited[v] = false;
-      for(const auto &p : restore_list) {
-        cand[p.first].insert(cand[p.first].end(), p.second.begin(), p.second.end());
+      for(size_t j = 0; j < edg[cur].size(); j++) {
+        Vertex w = edg[cur][j];
+        if(cand_inittime[w] == depth) {
+          cand_inittime[w] = -1;
+          cand[w].swap(cur_v_cand[j]);
+        }
+        else
+          cand[w].swap(old_cand[j]);
       }
     }
 
@@ -193,5 +215,5 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     for(const auto &v : edg[cur])
       indeg[v]++;
   };
-  btk();
+  btk(0);
 }

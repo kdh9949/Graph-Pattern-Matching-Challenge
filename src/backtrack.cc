@@ -89,20 +89,31 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   /////
 
   // prepare for backtracking
+  std::vector<std::vector<bool>> data_adj(DN, std::vector<bool>(DN));
+  for(Vertex v = 0; v < static_cast<Vertex>(DN); v++) {
+    size_t st = data.GetNeighborStartOffset(v);
+    size_t en = data.GetNeighborEndOffset(v);
+    for(size_t i = st; i < en; i++)
+      data_adj[v][data.GetNeighbor(i)] = true;
+  }
+
   std::vector<std::vector<Vertex>> cand(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     cand[u].resize(cs.GetCandidateSize(u));
     for(size_t i = 0; i < cand[u].size(); i++)
       cand[u][i] = cs.GetCandidate(u, i);
   }
+
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
+  
   std::vector<Vertex> extendable = {root};
   std::vector<Vertex> embed(N, -1);
   std::vector<bool> visited(DN);
   size_t count = 0;
 
+  // actual backtracking function
   const std::function<void()> btk = [&]() {
     if(extendable.empty()) { // found a match
       std::cout << "a ";
@@ -147,7 +158,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
         std::vector<Vertex> remove_list;
         if(!cand[w].empty()) {
           for(size_t i = cand[w].size() - 1; i + 1 > 0; i--) {
-            if(!data.IsNeighbor(v, cand[w][i])) {
+            if(!data_adj[v][cand[w][i]]) {
               remove_list.push_back(cand[w][i]);
               cand[w].erase(cand[w].begin() + i);
             }

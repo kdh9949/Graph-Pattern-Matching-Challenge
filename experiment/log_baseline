@@ -1,0 +1,25 @@
+    lcc_hprd_n1 :  0.064 /     96 /      0
+    lcc_hprd_n3 :  1.378 /  98510 /      0
+    lcc_hprd_n5 :  0.512 /  32832 /      0
+    lcc_hprd_n8 :  1.294 /  53548 /      0
+    lcc_hprd_s1 :  0.066 /    504 /      0
+    lcc_hprd_s3 :  1.367 /  98370 /      0
+    lcc_hprd_s5 :  1.278 /  69443 /      0
+    lcc_hprd_s8 :  1.464 /  53310 /      0
+   lcc_human_n1 :  0.320 / 100000 /      0
+   lcc_human_n3 :  1.003 /      0 /      0
+   lcc_human_n5 :  1.003 /      0 /      0
+   lcc_human_n8 :  0.660 / 100000 /      0
+   lcc_human_s1 :  0.334 / 100000 /      0
+   lcc_human_s3 :  0.421 / 100000 /      0
+   lcc_human_s5 :  1.006 /  19018 /      0
+   lcc_human_s8 :  1.003 /      0 /      0
+   lcc_yeast_n1 :  0.590 / 100000 /      0
+   lcc_yeast_n3 :  1.273 /  96554 /      0
+   lcc_yeast_n5 :  1.394 /  72589 /      0
+   lcc_yeast_n8 :  1.264 /  55941 /      0
+   lcc_yeast_s1 :  0.631 / 100000 /      0
+   lcc_yeast_s3 :  1.003 /      0 /      0
+   lcc_yeast_s5 :  1.003 /      0 /      0
+   lcc_yeast_s8 :  1.003 /      0 /      0
+TOT : time 0.889 / cor 52113.125 / incor 0.000

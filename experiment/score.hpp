@@ -7,6 +7,16 @@
 
 std::pair<size_t, size_t> score(const Graph &data, const Graph &query, const std::string &filename) {
   size_t N = query.GetNumVertices();
+  size_t DN = data.GetNumVertices();
+
+  std::vector<std::vector<bool>> data_adj(DN, std::vector<bool>(DN));
+  for(Vertex v = 0; v < static_cast<Vertex>(DN); v++) {
+    size_t st = data.GetNeighborStartOffset(v);
+    size_t en = data.GetNeighborEndOffset(v);
+    for(size_t i = st; i < en; i++)
+      data_adj[v][data.GetNeighbor(i)] = true;
+  }
+
   std::ifstream fin(filename.c_str());
   std::pair<size_t, size_t> ret;
   while(fin.good()) {
@@ -43,7 +53,7 @@ std::pair<size_t, size_t> score(const Graph &data, const Graph &query, const std
       size_t en = query.GetNeighborEndOffset(u);
       for(size_t i = st; i < en; i++) {
         Vertex v = query.GetNeighbor(i);
-        if(!data.IsNeighbor(embed[u], embed[v])) {
+        if(!data_adj[embed[u]][embed[v]]) {
           valid = false;
           break;
         }

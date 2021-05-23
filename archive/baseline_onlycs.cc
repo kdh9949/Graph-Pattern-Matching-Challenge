@@ -27,13 +27,11 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   
   // find root
   Vertex root = -1;
-  double csize_deg_ratio = 1e100; // +infinity
+  size_t min_csize = DN + 1;
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     size_t csize = cs.GetCandidateSize(u);
-    size_t deg = query.GetDegree(u);
-    double cur_ratio = static_cast<double>(csize) / deg;
-    if(csize_deg_ratio > cur_ratio) {
-      csize_deg_ratio = cur_ratio;
+    if(min_csize > csize) {
+      min_csize = csize;
       root = u;
     }
   }
