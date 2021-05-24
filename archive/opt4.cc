@@ -8,6 +8,7 @@
 #include <queue>
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <stdlib.h> // for exit(0)
 
 Backtrack::Backtrack() {}
@@ -96,6 +97,37 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     }
     sort(cand[u].begin(), cand[u].end());
   }
+  auto ini_cand = cand;
+
+  std::vector<std::vector<size_t>> weight(N);
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
+    weight[u].resize(cand[u].size());
+  const std::function<size_t(Vertex, size_t)> get_weight = [&](Vertex u, size_t i) {
+    if(weight[u][i] > 0)
+      return weight[u][i];
+    bool has_proper_child = false;
+    for(Vertex w : edg[u]) {
+      if(redg[u].size() == 1) {
+        has_proper_child = true;
+        break;
+      }
+    }
+    if(!has_proper_child)
+      return weight[u][i] = 1;
+    weight[u][i] = std::numeric_limits<size_t>::max();
+    for(Vertex w : edg[u]) {
+      if(redg[u].size() > 1) continue;
+      size_t cur_weight = 0;
+      for(size_t j = 0; j < cand[w].size(); j++)
+        if(data_adj[cand[u][i]][cand[w][j]])
+          cur_weight += get_weight(w, j);
+      weight[u][i] = std::min(weight[u][i], cur_weight);
+    }
+    return weight[u][i];
+  };
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
+    for(size_t i = 0; i < weight[u].size(); i++)
+      weight[u][i] = get_weight(u, i);
 
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
@@ -118,11 +150,19 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
     // select u (in query graph) for next match
     size_t cur_idx = 0;
-    size_t min_sz = cand[extendable[0]].size();
-    for(size_t i = 1; i < extendable.size(); i++) {
-      size_t cur_sz = cand[extendable[i]].size();
-      if(min_sz > cur_sz) {
-        min_sz = cur_sz;
+    size_t min_weight = std::numeric_limits<size_t>::max();
+    for(size_t i = 0; i < extendable.size(); i++) {
+      Vertex u = extendable[i];
+      size_t cur_weight = 0;
+      for(Vertex v : cand[u]) {
+        size_t idx = static_cast<size_t>(
+          std::lower_bound(ini_cand[u].begin(), ini_cand[u].end(), v)
+          - ini_cand[u].begin();
+        );
+        cur_weight += weight[u][idx];
+      }
+      if(min_weight > cur_weight) {
+        min_weight = cur_weight;
         cur_idx = i;
       }
     }
