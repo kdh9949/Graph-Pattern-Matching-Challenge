@@ -20,7 +20,7 @@ logf = open('log_' + sys.argv[1].split('.')[0], 'w')
 for query_name in query_list:
   base_name = query_name.split('.')[0]
   qpath = '../query/' + query_name
-  dpath = '../data/' + base_name[:-3] + '.igraph'
+  dpath = '../data/' + '_'.join(base_name.split('_')[:-1]) + '.igraph'
   cpath = '../candidate_set/' + base_name + '.cs'
   opath = '../tmp/' + base_name + '.out'
 

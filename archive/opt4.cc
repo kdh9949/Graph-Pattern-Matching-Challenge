@@ -27,58 +27,50 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   
   // find root
   Vertex root = -1;
-  size_t min_csize = DN + 1;
+  double min_ratio = 1e100; // +infinity
+  std::vector<double> cs_deg_ratio(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     size_t csize = cs.GetCandidateSize(u);
-    if(min_csize > csize) {
-      min_csize = csize;
+    size_t deg = query.GetDegree(u);
+    cs_deg_ratio[u] = static_cast<double>(csize) / deg;
+    if(min_ratio > cs_deg_ratio[u]) {
+      min_ratio = cs_deg_ratio[u];
       root = u;
-    }
-  }
-
-  // perform BFS
-  std::vector<int> dist(N, -1);
-  std::queue<Vertex> que;
-  que.push(root);
-  dist[root] = 0;
-  while(!que.empty()) {
-    Vertex cur = que.front();
-    que.pop();
-    size_t st = query.GetNeighborStartOffset(cur);
-    size_t en = query.GetNeighborEndOffset(cur);
-    for(size_t i = st; i < en; i++) {
-      Vertex nxt = query.GetNeighbor(i);
-      if(dist[nxt] < 0) {
-        dist[nxt] = dist[cur] + 1;
-        que.push(nxt);
-      }
     }
   }
 
   // build DAG
   std::vector<std::vector<Vertex>> edg(N), redg(N);
-  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    size_t st = query.GetNeighborStartOffset(u);
-    size_t en = query.GetNeighborEndOffset(u);
-    Label lu = query.GetLabel(u);
-    for(size_t i = st; i < en; i++) {
-      Vertex v = query.GetNeighbor(i);
-      Label lv = query.GetLabel(v);
+  {
+    std::vector<Vertex> extendable = {root};
+    std::vector<bool> pushed(N), popped(N);
+    pushed[root] = true;
+    while(!extendable.empty()) {
+      size_t cur_idx = 0;
+      double min_ratio = cs_deg_ratio[extendable[0]];
+      for(size_t i = 1; i < extendable.size(); i++) {
+        if(min_ratio > cs_deg_ratio[extendable[i]]) {
+          min_ratio = cs_deg_ratio[extendable[i]];
+          cur_idx = i;
+        }
+      }
+      Vertex cur = extendable[cur_idx];
+      popped[cur] = true;
+      extendable.erase(extendable.begin() + cur_idx);
 
-      bool is_forward = false;
-      if(dist[u] != dist[v])
-        is_forward = (dist[u] < dist[v]);
-      else if(data.GetLabelFrequency(lu) != data.GetLabelFrequency(lv))
-        is_forward = (data.GetLabelFrequency(lu) < data.GetLabelFrequency(lv));
-      else if(query.GetDegree(u) != query.GetDegree(v))
-        is_forward = (query.GetDegree(u) > query.GetDegree(v));
-      else
-        is_forward = (u < v);
-
-      if(is_forward)
-        edg[u].push_back(v);
-      else
-        redg[u].push_back(v);
+      size_t st = query.GetNeighborStartOffset(cur);
+      size_t en = query.GetNeighborEndOffset(cur);
+      for(size_t i = st; i < en; i++) {
+        Vertex v = query.GetNeighbor(i);
+        if(popped[v]) {
+          edg[v].push_back(cur);
+          redg[cur].push_back(v);
+        }
+        else if(!pushed[v]) {
+          extendable.push_back(v);
+          pushed[v] = true;
+        }
+      }
     }
   }
 
@@ -95,20 +87,22 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       data_adj[v][data.GetNeighbor(i)] = true;
   }
 
-  std::vector<std::vector<Vertex>> cand(N);
+  std::vector<std::vector<Vertex>> cand(N), inv_cand(DN);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     cand[u].resize(cs.GetCandidateSize(u));
-    for(size_t i = 0; i < cand[u].size(); i++)
+    for(size_t i = 0; i < cand[u].size(); i++) {
       cand[u][i] = cs.GetCandidate(u, i);
+      inv_cand[cand[u][i]].push_back(u);
+    }
+    sort(cand[u].begin(), cand[u].end());
   }
 
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
-  
+
   std::vector<Vertex> extendable = {root};
   std::vector<Vertex> embed(N, -1);
-  std::vector<bool> visited(DN);
   size_t count = 0;
 
   // actual backtracking function
@@ -121,12 +115,16 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       if(count == 100000) exit(0);
       return;
     }
-   
+
     // select u (in query graph) for next match
     size_t cur_idx = 0;
+    size_t min_sz = cand[extendable[0]].size();
     for(size_t i = 1; i < extendable.size(); i++) {
-      if(cand[extendable[cur_idx]].size() > cand[extendable[i]].size()) 
+      size_t cur_sz = cand[extendable[i]].size();
+      if(min_sz > cur_sz) {
+        min_sz = cur_sz;
         cur_idx = i;
+      }
     }
     Vertex cur = extendable[cur_idx];
     if(cand[cur].empty()) return; // there is no answers.
@@ -139,15 +137,11 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       if(indeg[v] == 0)
         extendable.push_back(v);
     }
-    
+
     // iterate for each current candidates
     for(const auto &v : cand[cur]) {
-      // check if already used
-      if(visited[v]) continue;
-
       // set new embedding
       embed[cur] = v;
-      visited[v] = true;
 
       // update candidate lists
       bool valid = true; // check if one of candidate set become empty
@@ -168,16 +162,27 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           break;
         }
       }
+      std::vector<Vertex> inv_restore_list;
+      for(Vertex u : inv_cand[v]) {
+        if(embed[u] >= 0) continue;
+        const auto it = lower_bound(cand[u].begin(), cand[u].end(), v);
+        if(it != cand[u].end() && *it == v) {
+          cand[u].erase(it);
+          inv_restore_list.push_back(u);
+        }
+      }
 
       // recursive call
       if(valid) btk();
 
       // restore changes
       embed[cur] = -1;
-      visited[v] = false;
       for(const auto &p : restore_list) {
         cand[p.first].insert(cand[p.first].end(), p.second.begin(), p.second.end());
+        sort(cand[p.first].begin(), cand[p.first].end());
       }
+      for(Vertex u : inv_restore_list)
+        cand[u].insert(lower_bound(cand[u].begin(), cand[u].end(), v), v);
     }
 
     // restore extendable lists
