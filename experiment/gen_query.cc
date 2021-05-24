@@ -9,16 +9,12 @@
 
 int main(int argc, char **argv) {
   std::string d_name(argv[1]);
-  d_name = "../data/" + d_name;
   std::string q_name(argv[2]);
-  std::string c_name = "../candidate_set/" + q_name;
-  while(c_name.back() != '.') c_name.pop_back();
-  c_name += "cs";
-  q_name = "../query/" + q_name;
-  std::string query_size(argv[3]);
+  std::string c_name(argv[3]);
+  std::string query_size(argv[4]);
   size_t N = stoi(query_size);
-  std::string min_avg_deg_s(argv[4]);
-  std::string max_avg_deg_s(argv[5]);
+  std::string min_avg_deg_s(argv[5]);
+  std::string max_avg_deg_s(argv[6]);
   size_t min_M = static_cast<size_t>(stof(min_avg_deg_s) / 2 * N);
   size_t max_M = static_cast<size_t>(stof(max_avg_deg_s) / 2 * N);
 
@@ -83,7 +79,7 @@ int main(int argc, char **argv) {
     }
   }
   
-  if(edges.size() < min_M) {
+  if(edges.size() < (min_M + max_M) / 2) {
     main(argc, argv);
     return EXIT_SUCCESS;
   }

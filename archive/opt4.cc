@@ -107,7 +107,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       return weight[u][i];
     bool has_proper_child = false;
     for(Vertex w : edg[u]) {
-      if(redg[u].size() == 1) {
+      if(redg[w].size() == 1) {
         has_proper_child = true;
         break;
       }
@@ -116,7 +116,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       return weight[u][i] = 1;
     weight[u][i] = std::numeric_limits<size_t>::max();
     for(Vertex w : edg[u]) {
-      if(redg[u].size() > 1) continue;
+      if(redg[w].size() > 1) continue;
       size_t cur_weight = 0;
       for(size_t j = 0; j < cand[w].size(); j++)
         if(data_adj[cand[u][i]][cand[w][j]])
@@ -157,7 +157,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       for(Vertex v : cand[u]) {
         size_t idx = static_cast<size_t>(
           std::lower_bound(ini_cand[u].begin(), ini_cand[u].end(), v)
-          - ini_cand[u].begin();
+          - ini_cand[u].begin()
         );
         cur_weight += weight[u][idx];
       }
