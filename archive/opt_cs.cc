@@ -38,7 +38,6 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       for(Vertex v : label_list[query.GetLabel(u)])
         if(data.GetDegree(v) <= query.GetDegree(u))
           my_cand[u].push_back(v);
-      std::cerr << my_cand[u].size() << std::endl;
     }
 
     // init dp table
@@ -87,11 +86,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       // calculte new candidate set
       std::vector<std::vector<Vertex>> new_cand(N);
       bool diff = false;
-      std::cerr << "-------" << std::endl;
       for(Vertex u : top_order) {
-        std::cerr << u << std::endl;
-        for(Vertex c : edg[u]) std::cerr << c << ' ';
-        std::cerr << std::endl;
         for(Vertex v : my_cand[u]) {
           bool new_dp = false;
           size_t st = data.GetNeighborStartOffset(v);
@@ -190,8 +185,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
   std::vector<std::vector<Vertex>> cand(N), inv_cand(DN);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    cand[u].resize(cs.GetCandidateSize(u));
-    std::cerr << cand[u].size() << ' ' << my_cand[u].size() << std::endl;
+    //cand[u].resize(cs.GetCandidateSize(u));
     cand[u] = my_cand[u];
     for(size_t i = 0; i < cand[u].size(); i++) {
       //cand[u][i] = cs.GetCandidate(u, i);
