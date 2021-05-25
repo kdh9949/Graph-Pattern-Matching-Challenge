@@ -11,6 +11,7 @@
 #include <limits>
 #include <random>
 #include <chrono>
+#include <map>
 #include <stdlib.h> // for exit(0)
 
 Backtrack::Backtrack() {}
@@ -30,6 +31,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<std::vector<Vertex>> my_cand(N);
   {
     // init candidate set
+    /*
     size_t L = data.GetNumLabels();
     std::vector<std::vector<Vertex>> label_list(L);
     for(Vertex v = 0; v < static_cast<Vertex>(DN); v++)
@@ -38,6 +40,13 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       for(Vertex v : label_list[query.GetLabel(u)])
         if(data.GetDegree(v) >= query.GetDegree(u))
           my_cand[u].push_back(v);
+    }
+    */
+    for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
+      my_cand[u].resize(cs.GetCandidateSize(u));
+      for(size_t i = 0; i < my_cand[u].size(); i++)
+        my_cand[u][i] = cs.GetCandidate(u, i);
+      std::sort(my_cand[u].begin(), my_cand[u].end());
     }
 
     // init dp table
@@ -55,19 +64,21 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       return std::uniform_int_distribution<int>(s, e)(mt);
     };
 
-    for(int _ = 0; _ < 100; _++) { 
+    for(int _ = 0; _ < 10; _++) { 
       // make random DAG
       std::vector<std::vector<Vertex>> edg(N);
       Vertex root = rnd(0, N - 1);
       std::vector<Vertex> extendable = {root}, top_order;
       std::vector<bool> pushed(N), popped(N);
       pushed[root] = true;
+      
       while(!extendable.empty()) {
         size_t cur_idx = rnd(0, extendable.size() - 1);
         Vertex cur = extendable[cur_idx];
         popped[cur] = true;
         top_order.push_back(cur);
         extendable.erase(extendable.begin() + cur_idx);
+        
         size_t st = query.GetNeighborStartOffset(cur);
         size_t en = query.GetNeighborEndOffset(cur);
         for(size_t i = st; i < en; i++) {
@@ -97,14 +108,78 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
                 break;
               }
             }
+            
             if(!cur) {
               new_dp = false;
               break;
             }
           }
+          
           dp[u][v] = new_dp;
           if(dp[u][v])
             new_cand[u].push_back(v);
+        }
+      }
+      my_cand = new_cand;
+
+      // further filtering
+      const auto calc = [&](const Graph &g, Vertex u, Vertex v,
+                            std::vector<size_t> &deg_seq,
+                            std::vector<std::pair<Label, size_t>> &label_cnt_seq) {
+        size_t st = g.GetNeighborStartOffset(v);
+        size_t en = g.GetNeighborEndOffset(v);
+        std::map<Label, size_t> label_map;
+        for(size_t i = st; i < en; i++) {
+          Vertex w = g.GetNeighbor(i);
+          if(u >= 0) {
+            bool found = false;
+            size_t qst = query.GetNeighborStartOffset(u);
+            size_t qen = query.GetNeighborEndOffset(u);
+            for(size_t j = qst; !found && j < qen; j++) {
+              Vertex t = query.GetNeighbor(j);
+              if(binary_search(my_cand[t].begin(), my_cand[t].end(), w))
+                found = true;
+            }
+            if(!found)
+              continue;
+          }
+          deg_seq.push_back(g.GetDegree(w));
+          label_map[g.GetLabel(w)]++;
+        }
+        std::sort(deg_seq.begin(), deg_seq.end(), std::greater<size_t>());
+        for(const auto &p : label_map)
+          label_cnt_seq.emplace_back(p.first, p.second);
+      };
+
+      for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
+        new_cand[u].resize(0);
+        std::vector<size_t> query_deg_seq;
+        std::vector<std::pair<Label, size_t>> query_label_cnt_seq;
+        calc(query, -1, u, query_deg_seq, query_label_cnt_seq);
+        
+        for(Vertex v : my_cand[u]) {
+          std::vector<size_t> data_deg_seq;
+          std::vector<std::pair<Label, size_t>> data_label_cnt_seq;
+          calc(data, u, v, data_deg_seq, data_label_cnt_seq);
+          
+          bool valid = true;
+          if(query_deg_seq.size() > data_deg_seq.size()
+             || query_label_cnt_seq.size() > data_label_cnt_seq.size())
+            valid = false;
+          for(size_t i = 0; valid && i < query_deg_seq.size(); i++)
+            if(query_deg_seq[i] > data_deg_seq[i])
+              valid = false;
+          for(size_t i = 0, j = 0; valid && i < query_label_cnt_seq.size(); i++) {
+            while(j < data_label_cnt_seq.size()
+                  && data_label_cnt_seq[j].first < query_label_cnt_seq[i].first)
+              j++;
+            if(j == data_label_cnt_seq.size()
+               || query_label_cnt_seq[i].first != data_label_cnt_seq[j].first
+               || query_label_cnt_seq[i].second > data_label_cnt_seq[j].second)
+              valid = false;
+          }
+          
+          if(valid) new_cand[u].push_back(v);
         }
       }
       my_cand = new_cand;
@@ -178,16 +253,21 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   }
 
   std::vector<std::vector<Vertex>> cand(N), inv_cand(DN);
+  size_t ori_size = 0, my_size = 0;
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    //cand[u].resize(cs.GetCandidateSize(u));
-    std::cerr << cs.GetCandidateSize(u) << " vs " << my_cand[u].size() << std::endl;
-    cand[u] = my_cand[u];
-    for(size_t i = 0; i < cand[u].size(); i++) {
-      //cand[u][i] = cs.GetCandidate(u, i);
-      inv_cand[cand[u][i]].push_back(u);
-    }
-    sort(cand[u].begin(), cand[u].end());
+    std::vector<Vertex> ori_cand(cs.GetCandidateSize(u));
+    for(size_t i = 0; i < ori_cand.size(); i++)
+      ori_cand[i] = cs.GetCandidate(u, i);
+    for(Vertex v : ori_cand)
+      if(binary_search(my_cand[u].begin(), my_cand[u].end(), v))
+        cand[u].push_back(v);
+    for(Vertex v : cand[u])
+      inv_cand[v].push_back(u);
+    std::sort(cand[u].begin(), cand[u].end());
+    ori_size += cs.GetCandidateSize(u);
+    my_size += cand[u].size();
   }
+  std::cerr << ori_size << " vs " << my_size << std::endl;
   auto ini_cand = cand;
 
   std::vector<std::vector<size_t>> weight(N);
@@ -196,6 +276,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   const std::function<size_t(Vertex, size_t)> get_weight = [&](Vertex u, size_t i) {
     if(weight[u][i] > 0)
       return weight[u][i];
+    
     bool has_proper_child = false;
     for(Vertex w : edg[u]) {
       if(redg[w].size() == 1) {
@@ -205,6 +286,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     }
     if(!has_proper_child)
       return weight[u][i] = 1;
+    
     weight[u][i] = std::numeric_limits<size_t>::max();
     for(Vertex w : edg[u]) {
       if(redg[w].size() > 1) continue;
@@ -214,6 +296,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           cur_weight += get_weight(w, j);
       weight[u][i] = std::min(weight[u][i], cur_weight);
     }
+    
     return weight[u][i];
   };
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
@@ -293,6 +376,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
           break;
         }
       }
+      
       std::vector<Vertex> inv_restore_list;
       for(Vertex u : inv_cand[v]) {
         if(embed[u] >= 0) continue;
