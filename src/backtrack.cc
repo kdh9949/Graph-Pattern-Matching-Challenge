@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <functional>
 #include <limits>
+#include <random>
+#include <chrono>
 #include <stdlib.h> // for exit(0)
 
 Backtrack::Backtrack() {}
@@ -21,6 +23,104 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   size_t N = query.GetNumVertices();
   size_t DN = data.GetNumVertices();
   std::cout << "t " << N << std::endl;
+
+  /////
+  // Step 0 : calculate candidate set in different fashion : to get more information
+  /////
+  std::vector<std::vector<Vertex>> my_cand(N);
+  {
+    // init candidate set
+    size_t L = data.GetNumLabels();
+    std::vector<std::vector<Vertex>> label_list(L);
+    for(Vertex v = 0; v < static_cast<Vertex>(DN); v++)
+      label_list[data.GetLabel(v)].push_back(v);
+    for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
+      for(Vertex v : label_list[query.GetLabel(u)])
+        if(data.GetDegree(v) <= query.GetDegree(u))
+          my_cand[u].push_back(v);
+      std::cerr << my_cand[u].size() << std::endl;
+    }
+
+    // init dp table
+    std::vector<std::vector<bool>> dp(N, std::vector<bool>(DN));
+    for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
+      for(Vertex v : my_cand[u])
+        dp[u][v] = true;
+
+    // init for random generation
+    std::mt19937 mt(
+      std::chrono::high_resolution_clock::now()
+      .time_since_epoch().count()
+    );
+    const auto rnd = [&](int s, int e) {
+      return std::uniform_int_distribution<int>(s, e)(mt);
+    };
+
+    // loop until nothing changes
+    while(true) {
+      // make random DAG
+      std::vector<std::vector<Vertex>> edg(N);
+      Vertex root = rnd(0, N - 1);
+      std::vector<Vertex> extendable = {root}, top_order;
+      std::vector<bool> pushed(N), popped(N);
+      pushed[root] = true;
+      while(!extendable.empty()) {
+        size_t cur_idx = rnd(0, extendable.size() - 1);
+        Vertex cur = extendable[cur_idx];
+        popped[cur] = true;
+        top_order.push_back(cur);
+        extendable.erase(extendable.begin() + cur_idx);
+        size_t st = query.GetNeighborStartOffset(cur);
+        size_t en = query.GetNeighborEndOffset(cur);
+        for(size_t i = st; i < en; i++) {
+          Vertex v = query.GetNeighbor(i);
+          if(popped[v])
+            edg[v].push_back(cur);
+          else if(!pushed[v]) {
+            extendable.push_back(v);
+            pushed[v] = true;
+          }
+        }
+      }
+      std::reverse(top_order.begin(), top_order.end());
+
+      // calculte new candidate set
+      std::vector<std::vector<Vertex>> new_cand(N);
+      bool diff = false;
+      std::cerr << "-------" << std::endl;
+      for(Vertex u : top_order) {
+        std::cerr << u << std::endl;
+        for(Vertex c : edg[u]) std::cerr << c << ' ';
+        std::cerr << std::endl;
+        for(Vertex v : my_cand[u]) {
+          bool new_dp = false;
+          size_t st = data.GetNeighborStartOffset(v);
+          size_t en = data.GetNeighborEndOffset(v);
+          for(size_t i = st; i < en; i++) {
+            Vertex w = data.GetNeighbor(i);
+            bool cur = true;
+            for(Vertex c : edg[u]) {
+              if(!dp[c][w]) {
+                cur = false;
+                break;
+              }
+            }
+            if(cur) {
+              new_dp = true;
+              break;
+            }
+          }
+          dp[u][v] = new_dp;
+          if(dp[u][v])
+            new_cand[u].push_back(v);
+          else
+            diff = true;
+        }
+      }
+      if(diff) my_cand = new_cand;
+      else break;
+    }
+  }
 
   /////
   // Step 1 : build DAG from query graph, with BFS
@@ -91,8 +191,10 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<std::vector<Vertex>> cand(N), inv_cand(DN);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     cand[u].resize(cs.GetCandidateSize(u));
+    std::cerr << cand[u].size() << ' ' << my_cand[u].size() << std::endl;
+    cand[u] = my_cand[u];
     for(size_t i = 0; i < cand[u].size(); i++) {
-      cand[u][i] = cs.GetCandidate(u, i);
+      //cand[u][i] = cs.GetCandidate(u, i);
       inv_cand[cand[u][i]].push_back(u);
     }
     sort(cand[u].begin(), cand[u].end());

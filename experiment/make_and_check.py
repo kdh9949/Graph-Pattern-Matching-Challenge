@@ -5,9 +5,12 @@ from os import system, listdir
 from time import time
 S = system
 
+query_limit = 10000
+if len(sys.argv) >= 3:
+  query_limit = int(sys.argv[2])
 limit = 60
-if len(sys.argv) == 3:
-  limit = int(sys.argv[2])
+if len(sys.argv) >= 4:
+  limit = int(sys.argv[3])
 
 S(f'cp ../archive/{sys.argv[1]} ../src/backtrack.cc')
 S('make -C ../build')
@@ -16,8 +19,12 @@ query_list = sorted(listdir('../query'))
 tot_cor = 0
 tot_incor = 0
 tot_time = 0
+query_cnt = 0
 logf = open('log_' + sys.argv[1].split('.')[0], 'w')
 for query_name in query_list:
+  query_cnt += 1
+  if query_cnt > query_limit:
+    break
   base_name = query_name.split('.')[0]
   qpath = '../query/' + query_name
   dpath = '../data/' + '_'.join(base_name.split('_')[:-1]) + '.igraph'

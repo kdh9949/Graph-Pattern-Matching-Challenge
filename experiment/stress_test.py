@@ -17,6 +17,7 @@ S(f'cp ../archive/{sys.argv[1]} ../src/backtrack.cc')
 S('make -C ../build')
 
 data_list = sorted(listdir('../data'))
+hash_str = str(int(time() * 1e6) % int(1e9))
 for data_name in data_list:
   print('------------------------------')
   print(f'Now testing {data_name}')
@@ -24,10 +25,10 @@ for data_name in data_list:
   logf.write(f'--- {data_name} ---\n')
 
   dpath = '../data/' + data_name
-  qpath = '../tmp/query'
-  cpath = '../tmp/cs'
-  opath = '../tmp/out'
-  spath = '../tmp/score'
+  qpath = '../tmp/query' + hash_str
+  cpath = '../tmp/cs' + hash_str
+  opath = '../tmp/out' + hash_str
+  spath = '../tmp/score' + hash_str
   
   for k in range(1, 5):
     n = k * (10 if 'human' in data_name else 50)
