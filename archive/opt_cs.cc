@@ -36,7 +36,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       label_list[data.GetLabel(v)].push_back(v);
     for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
       for(Vertex v : label_list[query.GetLabel(u)])
-        if(data.GetDegree(v) <= query.GetDegree(u))
+        if(data.GetDegree(v) >= query.GetDegree(u))
           my_cand[u].push_back(v);
     }
 
@@ -55,8 +55,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       return std::uniform_int_distribution<int>(s, e)(mt);
     };
 
-    // loop until nothing changes
-    while(true) {
+    for(int _ = 0; _ < 10; _++) { 
       // make random DAG
       std::vector<std::vector<Vertex>> edg(N);
       Vertex root = rnd(0, N - 1);
@@ -85,35 +84,63 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
       // calculte new candidate set
       std::vector<std::vector<Vertex>> new_cand(N);
-      bool diff = false;
       for(Vertex u : top_order) {
         for(Vertex v : my_cand[u]) {
-          bool new_dp = false;
-          size_t st = data.GetNeighborStartOffset(v);
-          size_t en = data.GetNeighborEndOffset(v);
-          for(size_t i = st; i < en; i++) {
-            Vertex w = data.GetNeighbor(i);
-            bool cur = true;
-            for(Vertex c : edg[u]) {
-              if(!dp[c][w]) {
-                cur = false;
+          bool new_dp = true;
+          for(Vertex c : edg[u]) {
+            size_t st = data.GetNeighborStartOffset(v);
+            size_t en = data.GetNeighborEndOffset(v);
+            bool cur = false;
+            for(size_t i = st; i < en; i++) {
+              if(dp[c][data.GetNeighbor(i)]) {
+                cur = true;
                 break;
               }
             }
-            if(cur) {
-              new_dp = true;
+            if(!cur) {
+              new_dp = false;
               break;
             }
           }
           dp[u][v] = new_dp;
           if(dp[u][v])
             new_cand[u].push_back(v);
-          else
-            diff = true;
         }
       }
-      if(diff) my_cand = new_cand;
-      else break;
+      my_cand = new_cand;
+
+      // further filtering
+      const auto calc = [&](Graph &g, Vertex v, std::vector<size_t> deg_seq,
+                            std::vector<std::pair<Label, size_t>> label_cnt_seq) {
+        
+      };
+      for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
+        new_cand[u].resize(0);
+        std::vector<size_t> query_deg_seq;
+        std::vector<std::pair<Label, size_t>> query_label_cnt_seq;
+        calc(query, u, query_deg_seq, query_label_cnt_seq);
+        size_t st = query.GetNeighborStartOffset(v);
+        for(Vertex v : my_cand[u]) {
+          std::vector<size_t> data_deg_seq;
+          std::vector<std::pair<Label, size_t>> data_label_cnt_seq;
+          calc(data, v, data_deg_seq, data_label_cnt_seq);
+          bool valid = true;
+          for(size_t i = 0; valid && i < query_deg_seq.size(); i++)
+            if(query_deg_seq[i] > data_deg_seq[i])
+              valid = false;
+          for(size_t i = 0, j = 0; valid && i < query_label_cnt_seq.size(); i++) {
+            while(j < data_label_cnt_seq.size()
+                  && data_label_cnt_seq[j].first < query_label_cnt_seq[i].first)
+              j++;
+            if(j == data_label_cnt_seq.size()
+               || query_label_cnt_seq[i].first != data_label_cnt_seq[i].first
+               || query_label_cnt_seq[i].second > data_label_cnt_seq[i].second)
+              valid = false;
+          }
+          if(valid) new_cand[u].push_back(v);
+        }
+      }
+      my_cand = new_cand;
     }
   }
 
@@ -186,6 +213,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<std::vector<Vertex>> cand(N), inv_cand(DN);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     //cand[u].resize(cs.GetCandidateSize(u));
+    std::cerr << cs.GetCandidateSize(u) << " vs " << my_cand[u].size() << std::endl;
     cand[u] = my_cand[u];
     for(size_t i = 0; i < cand[u].size(); i++) {
       //cand[u][i] = cs.GetCandidate(u, i);

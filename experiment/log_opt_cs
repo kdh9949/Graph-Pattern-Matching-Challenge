@@ -1,2 +1,4 @@
-    lcc_hprd_n1 :  0.066 /      0 /      0
-TOT : time 0.003 / cor 0.000 / incor 0.000
+          aaa_a :  0.004 /      4 /      0
+    lcc_hprd_n1 :  0.072 /     96 /      0
+    lcc_hprd_n3 :  1.335 / 100000 /      0
+TOT : time 0.056 / cor 4004.000 / incor 0.000

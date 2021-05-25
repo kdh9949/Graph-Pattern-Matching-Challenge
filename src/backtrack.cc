@@ -36,7 +36,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       label_list[data.GetLabel(v)].push_back(v);
     for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
       for(Vertex v : label_list[query.GetLabel(u)])
-        if(data.GetDegree(v) <= query.GetDegree(u))
+        if(data.GetDegree(v) >= query.GetDegree(u))
           my_cand[u].push_back(v);
     }
 
@@ -55,8 +55,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       return std::uniform_int_distribution<int>(s, e)(mt);
     };
 
-    // loop until nothing changes
-    while(true) {
+    for(int _ = 0; _ < 100; _++) { 
       // make random DAG
       std::vector<std::vector<Vertex>> edg(N);
       Vertex root = rnd(0, N - 1);
@@ -85,35 +84,30 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
       // calculte new candidate set
       std::vector<std::vector<Vertex>> new_cand(N);
-      bool diff = false;
       for(Vertex u : top_order) {
         for(Vertex v : my_cand[u]) {
-          bool new_dp = false;
-          size_t st = data.GetNeighborStartOffset(v);
-          size_t en = data.GetNeighborEndOffset(v);
-          for(size_t i = st; i < en; i++) {
-            Vertex w = data.GetNeighbor(i);
-            bool cur = true;
-            for(Vertex c : edg[u]) {
-              if(!dp[c][w]) {
-                cur = false;
+          bool new_dp = true;
+          for(Vertex c : edg[u]) {
+            size_t st = data.GetNeighborStartOffset(v);
+            size_t en = data.GetNeighborEndOffset(v);
+            bool cur = false;
+            for(size_t i = st; i < en; i++) {
+              if(dp[c][data.GetNeighbor(i)]) {
+                cur = true;
                 break;
               }
             }
-            if(cur) {
-              new_dp = true;
+            if(!cur) {
+              new_dp = false;
               break;
             }
           }
           dp[u][v] = new_dp;
           if(dp[u][v])
             new_cand[u].push_back(v);
-          else
-            diff = true;
         }
       }
-      if(diff) my_cand = new_cand;
-      else break;
+      my_cand = new_cand;
     }
   }
 
@@ -186,6 +180,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<std::vector<Vertex>> cand(N), inv_cand(DN);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     //cand[u].resize(cs.GetCandidateSize(u));
+    std::cerr << cs.GetCandidateSize(u) << " vs " << my_cand[u].size() << std::endl;
     cand[u] = my_cand[u];
     for(size_t i = 0; i < cand[u].size(); i++) {
       //cand[u][i] = cs.GetCandidate(u, i);
