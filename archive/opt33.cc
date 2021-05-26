@@ -186,7 +186,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
     size_t csize = my_cand[u].size();
     size_t deg = query.GetDegree(u);
-    cs_deg_ratio[u] = static_cast<double>(csize) / deg;
+    cs_deg_ratio[u] = csize / 1.0; //static_cast<double>(csize) / deg;
     if(min_ratio > cs_deg_ratio[u]) {
       min_ratio = cs_deg_ratio[u];
       root = u;

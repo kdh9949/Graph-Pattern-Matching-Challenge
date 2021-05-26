@@ -196,6 +196,8 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   // build DAG
   std::vector<std::vector<Vertex>> edg(N), redg(N);
   {
+    for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
+      cs_deg_ratio[u] = my_cand[u].size();
     std::vector<Vertex> extendable = {root};
     std::vector<bool> pushed(N), popped(N);
     pushed[root] = true;
