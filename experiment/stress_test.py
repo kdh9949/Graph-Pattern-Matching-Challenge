@@ -7,6 +7,7 @@ S = system
 
 if len(sys.argv) != 4:
   print('Usage : ./stress_test [code filename] [trial for each test] [time limit for each test]')
+  exit()
 
 code_name = sys.argv[1]
 trial = int(sys.argv[2])
@@ -16,7 +17,7 @@ logf = open('log_' + code_name.split('.')[0], 'w')
 S(f'cp ../archive/{sys.argv[1]} ../src/backtrack.cc')
 S('make -C ../build')
 
-data_list = sorted(listdir('../data'))
+data_list = sorted(listdir('../data'))[1:]
 hash_str = str(int(time() * 1e6) % int(1e9))
 for data_name in data_list:
   print('------------------------------')

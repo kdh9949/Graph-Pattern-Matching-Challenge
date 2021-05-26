@@ -204,49 +204,38 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     }
   }
 
-  // perform BFS
-  std::vector<int> dist(N, -1);
-  std::queue<Vertex> que;
-  que.push(root);
-  dist[root] = 0;
-  while(!que.empty()) {
-    Vertex cur = que.front();
-    que.pop();
-    size_t st = query.GetNeighborStartOffset(cur);
-    size_t en = query.GetNeighborEndOffset(cur);
-    for(size_t i = st; i < en; i++) {
-      Vertex nxt = query.GetNeighbor(i);
-      if(dist[nxt] < 0) {
-        dist[nxt] = dist[cur] + 1;
-        que.push(nxt);
-      }
-    }
-  }
-
   // build DAG
   std::vector<std::vector<Vertex>> edg(N), redg(N);
-  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    size_t st = query.GetNeighborStartOffset(u);
-    size_t en = query.GetNeighborEndOffset(u);
-    Label lu = query.GetLabel(u);
-    for(size_t i = st; i < en; i++) {
-      Vertex v = query.GetNeighbor(i);
-      Label lv = query.GetLabel(v);
+  {
+    std::vector<Vertex> extendable = {root};
+    std::vector<bool> pushed(N), popped(N);
+    pushed[root] = true;
+    while(!extendable.empty()) {
+      size_t cur_idx = 0;
+      double min_ratio = cs_deg_ratio[extendable[0]];
+      for(size_t i = 1; i < extendable.size(); i++) {
+        if(min_ratio > cs_deg_ratio[extendable[i]]) {
+          min_ratio = cs_deg_ratio[extendable[i]];
+          cur_idx = i;
+        }
+      }
+      Vertex cur = extendable[cur_idx];
+      popped[cur] = true;
+      extendable.erase(extendable.begin() + cur_idx);
 
-      bool is_forward = false;
-      if(dist[u] != dist[v])
-        is_forward = (dist[u] < dist[v]);
-      else if(data.GetLabelFrequency(lu) != data.GetLabelFrequency(lv))
-        is_forward = (data.GetLabelFrequency(lu) < data.GetLabelFrequency(lv));
-      else if(query.GetDegree(u) != query.GetDegree(v))
-        is_forward = (query.GetDegree(u) > query.GetDegree(v));
-      else
-        is_forward = (u < v);
-
-      if(is_forward)
-        edg[u].push_back(v);
-      else
-        redg[u].push_back(v);
+      size_t st = query.GetNeighborStartOffset(cur);
+      size_t en = query.GetNeighborEndOffset(cur);
+      for(size_t i = st; i < en; i++) {
+        Vertex v = query.GetNeighbor(i);
+        if(popped[v]) {
+          edg[v].push_back(cur);
+          redg[cur].push_back(v);
+        }
+        else if(!pushed[v]) {
+          extendable.push_back(v);
+          pushed[v] = true;
+        }
+      }
     }
   }
 
