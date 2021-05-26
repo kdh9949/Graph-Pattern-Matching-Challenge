@@ -267,6 +267,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     ori_size += cs.GetCandidateSize(u);
     my_size += cand[u].size();
   }
+  //std::cerr << ori_size << " vs " << my_size << std::endl;
   
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)

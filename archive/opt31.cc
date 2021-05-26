@@ -31,17 +31,6 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<std::vector<Vertex>> my_cand(N);
   {
     // init candidate set
-    /*
-    size_t L = data.GetNumLabels();
-    std::vector<std::vector<Vertex>> label_list(L);
-    for(Vertex v = 0; v < static_cast<Vertex>(DN); v++)
-      label_list[data.GetLabel(v)].push_back(v);
-    for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-      for(Vertex v : label_list[query.GetLabel(u)])
-        if(data.GetDegree(v) >= query.GetDegree(u))
-          my_cand[u].push_back(v);
-    }
-    */
     for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
       my_cand[u].resize(cs.GetCandidateSize(u));
       for(size_t i = 0; i < my_cand[u].size(); i++)
@@ -255,55 +244,15 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
   std::vector<std::vector<Vertex>> cand(N), inv_cand(DN);
   size_t ori_size = 0, my_size = 0;
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    std::vector<Vertex> ori_cand(cs.GetCandidateSize(u));
-    for(size_t i = 0; i < ori_cand.size(); i++)
-      ori_cand[i] = cs.GetCandidate(u, i);
-    for(Vertex v : ori_cand)
-      if(binary_search(my_cand[u].begin(), my_cand[u].end(), v))
-        cand[u].push_back(v);
+    cand[u] = my_cand[u];
+    std::sort(cand[u].begin(), cand[u].end());
     for(Vertex v : cand[u])
       inv_cand[v].push_back(u);
-    std::sort(cand[u].begin(), cand[u].end());
     ori_size += cs.GetCandidateSize(u);
     my_size += cand[u].size();
   }
-  auto ini_cand = cand;
-
-  std::vector<std::vector<size_t>> weight(N);
-  for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
-    weight[u].resize(cand[u].size());
-  const std::function<size_t(Vertex, size_t)> get_weight = [&](Vertex u, size_t i) {
-    if(weight[u][i] > 0)
-      return weight[u][i];
-    
-    bool has_proper_child = false;
-    for(Vertex w : edg[u]) {
-      if(redg[w].size() == 1) {
-        has_proper_child = true;
-        break;
-      }
-    }
-    if(!has_proper_child)
-      return weight[u][i] = 1;
-    
-    weight[u][i] = std::numeric_limits<size_t>::max();
-    for(Vertex w : edg[u]) {
-      if(redg[w].size() > 1) continue;
-      size_t cur_weight = 0;
-      for(size_t j = 0; j < cand[w].size(); j++)
-        if(data_adj[cand[u][i]][cand[w][j]])
-          cur_weight += get_weight(w, j);
-      weight[u][i] = std::min(weight[u][i], cur_weight);
-    }
-    
-    return weight[u][i];
-  };
-  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    for(size_t i = 0; i < weight[u].size(); i++)
-      weight[u][i] = get_weight(u, i);
-    std::cerr << u << ' ' << *std::max_element(weight[u].begin(), weight[u].end()) << std::endl;
-  }
-
+  //std::cerr << ori_size << " vs " << my_size << std::endl;
+  
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
@@ -325,25 +274,17 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
     // select u (in query graph) for next match
     size_t cur_idx = 0;
-    size_t min_weight = std::numeric_limits<size_t>::max();
-    for(size_t i = 0; i < extendable.size(); i++) {
-      Vertex u = extendable[i];
-      size_t cur_weight = 0;
-      for(Vertex v : cand[u]) {
-        size_t idx = static_cast<size_t>(
-          std::lower_bound(ini_cand[u].begin(), ini_cand[u].end(), v)
-          - ini_cand[u].begin()
-        );
-        cur_weight += weight[u][idx];
-      }
-      if(min_weight > cur_weight) {
-        min_weight = cur_weight;
+    size_t min_sz = cand[extendable[0]].size();
+    for(size_t i = 1; i < extendable.size(); i++) {
+      size_t cur_sz = cand[extendable[i]].size();
+      if(min_sz > cur_sz) {
+        min_sz = cur_sz;
         cur_idx = i;
       }
     }
     Vertex cur = extendable[cur_idx];
     if(cand[cur].empty()) return; // there is no answers.
-
+    
     // update extendable lists
     extendable.erase(extendable.begin() + cur_idx);
     size_t old_sz = extendable.size();

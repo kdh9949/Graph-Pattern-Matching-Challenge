@@ -204,49 +204,38 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     }
   }
 
-  // perform BFS
-  std::vector<int> dist(N, -1);
-  std::queue<Vertex> que;
-  que.push(root);
-  dist[root] = 0;
-  while(!que.empty()) {
-    Vertex cur = que.front();
-    que.pop();
-    size_t st = query.GetNeighborStartOffset(cur);
-    size_t en = query.GetNeighborEndOffset(cur);
-    for(size_t i = st; i < en; i++) {
-      Vertex nxt = query.GetNeighbor(i);
-      if(dist[nxt] < 0) {
-        dist[nxt] = dist[cur] + 1;
-        que.push(nxt);
-      }
-    }
-  }
-
   // build DAG
   std::vector<std::vector<Vertex>> edg(N), redg(N);
-  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
-    size_t st = query.GetNeighborStartOffset(u);
-    size_t en = query.GetNeighborEndOffset(u);
-    Label lu = query.GetLabel(u);
-    for(size_t i = st; i < en; i++) {
-      Vertex v = query.GetNeighbor(i);
-      Label lv = query.GetLabel(v);
+  {
+    std::vector<Vertex> extendable = {root};
+    std::vector<bool> pushed(N), popped(N);
+    pushed[root] = true;
+    while(!extendable.empty()) {
+      size_t cur_idx = 0;
+      double min_ratio = cs_deg_ratio[extendable[0]];
+      for(size_t i = 1; i < extendable.size(); i++) {
+        if(min_ratio > cs_deg_ratio[extendable[i]]) {
+          min_ratio = cs_deg_ratio[extendable[i]];
+          cur_idx = i;
+        }
+      }
+      Vertex cur = extendable[cur_idx];
+      popped[cur] = true;
+      extendable.erase(extendable.begin() + cur_idx);
 
-      bool is_forward = false;
-      if(dist[u] != dist[v])
-        is_forward = (dist[u] < dist[v]);
-      else if(data.GetLabelFrequency(lu) != data.GetLabelFrequency(lv))
-        is_forward = (data.GetLabelFrequency(lu) < data.GetLabelFrequency(lv));
-      else if(query.GetDegree(u) != query.GetDegree(v))
-        is_forward = (query.GetDegree(u) > query.GetDegree(v));
-      else
-        is_forward = (u < v);
-
-      if(is_forward)
-        edg[u].push_back(v);
-      else
-        redg[u].push_back(v);
+      size_t st = query.GetNeighborStartOffset(cur);
+      size_t en = query.GetNeighborEndOffset(cur);
+      for(size_t i = st; i < en; i++) {
+        Vertex v = query.GetNeighbor(i);
+        if(popped[v]) {
+          edg[v].push_back(cur);
+          redg[cur].push_back(v);
+        }
+        else if(!pushed[v]) {
+          extendable.push_back(v);
+          pushed[v] = true;
+        }
+      }
     }
   }
 
@@ -278,7 +267,43 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     ori_size += cs.GetCandidateSize(u);
     my_size += cand[u].size();
   }
-  
+  auto ini_cand = cand;
+
+  std::vector<std::vector<size_t>> weight(N);
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
+    weight[u].resize(cand[u].size());
+  const std::function<size_t(Vertex, size_t)> get_weight = [&](Vertex u, size_t i) {
+    if(weight[u][i] > 0)
+      return weight[u][i];
+    
+    bool has_proper_child = false;
+    for(Vertex w : edg[u]) {
+      if(redg[w].size() == 1) {
+        has_proper_child = true;
+        break;
+      }
+    }
+    if(!has_proper_child)
+      return weight[u][i] = 1;
+    
+    weight[u][i] = std::numeric_limits<size_t>::max();
+    for(Vertex w : edg[u]) {
+      if(redg[w].size() > 1) continue;
+      size_t cur_weight = 0;
+      for(size_t j = 0; j < cand[w].size(); j++)
+        if(data_adj[cand[u][i]][cand[w][j]])
+          cur_weight += get_weight(w, j);
+      weight[u][i] = std::min(weight[u][i], cur_weight);
+    }
+    
+    return weight[u][i];
+  };
+  for(Vertex u = 0; u < static_cast<Vertex>(N); u++) {
+    for(size_t i = 0; i < weight[u].size(); i++)
+      weight[u][i] = get_weight(u, i);
+    std::cerr << u << ' ' << *std::max_element(weight[u].begin(), weight[u].end()) << std::endl;
+  }
+
   std::vector<size_t> indeg(N);
   for(Vertex u = 0; u < static_cast<Vertex>(N); u++)
     indeg[u] = redg[u].size();
@@ -300,17 +325,25 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
 
     // select u (in query graph) for next match
     size_t cur_idx = 0;
-    size_t min_sz = cand[extendable[0]].size();
-    for(size_t i = 1; i < extendable.size(); i++) {
-      size_t cur_sz = cand[extendable[i]].size();
-      if(min_sz > cur_sz) {
-        min_sz = cur_sz;
+    size_t min_weight = std::numeric_limits<size_t>::max();
+    for(size_t i = 0; i < extendable.size(); i++) {
+      Vertex u = extendable[i];
+      size_t cur_weight = 0;
+      for(Vertex v : cand[u]) {
+        size_t idx = static_cast<size_t>(
+          std::lower_bound(ini_cand[u].begin(), ini_cand[u].end(), v)
+          - ini_cand[u].begin()
+        );
+        cur_weight += weight[u][idx];
+      }
+      if(min_weight > cur_weight) {
+        min_weight = cur_weight;
         cur_idx = i;
       }
     }
     Vertex cur = extendable[cur_idx];
     if(cand[cur].empty()) return; // there is no answers.
-    
+
     // update extendable lists
     extendable.erase(extendable.begin() + cur_idx);
     size_t old_sz = extendable.size();
