@@ -8,7 +8,6 @@
 #include <queue>
 #include <algorithm>
 #include <functional>
-#include <numeric>
 #include <limits>
 #include <random>
 #include <chrono>
@@ -54,41 +53,63 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
       return std::uniform_int_distribution<int>(s, e)(mt);
     };
 
-    for(int _ = 0; _ < 100; _++) { 
-      // make random order
-      std::vector<Vertex> random_order(N);
-      std::iota(random_order.begin(), random_order.end(), 0);
-      std::shuffle(random_order.begin(), random_order.end(), mt);
-       
+    for(int _ = 0; _ < 10; _++) { 
+      // make random DAG
+      std::vector<std::vector<Vertex>> edg(N);
+      Vertex root = rnd(0, N - 1);
+      std::vector<Vertex> extendable = {root}, top_order;
+      std::vector<bool> pushed(N), popped(N);
+      pushed[root] = true;
+      
+      while(!extendable.empty()) {
+        size_t cur_idx = rnd(0, extendable.size() - 1);
+        Vertex cur = extendable[cur_idx];
+        popped[cur] = true;
+        top_order.push_back(cur);
+        extendable.erase(extendable.begin() + cur_idx);
+        
+        size_t st = query.GetNeighborStartOffset(cur);
+        size_t en = query.GetNeighborEndOffset(cur);
+        for(size_t i = st; i < en; i++) {
+          Vertex v = query.GetNeighbor(i);
+          if(popped[v])
+            edg[v].push_back(cur);
+          else if(!pushed[v]) {
+            extendable.push_back(v);
+            pushed[v] = true;
+          }
+        }
+      }
+      std::reverse(top_order.begin(), top_order.end());
+
       // calculte new candidate set
       std::vector<std::vector<Vertex>> new_cand(N);
-      for(Vertex u : random_order) {
+      for(Vertex u : top_order) {
         for(Vertex v : my_cand[u]) {
           bool new_dp = true;
-          size_t st = query.GetNeighborStartOffset(u);
-          size_t en = query.GetNeighborEndOffset(u);
-          for(size_t i = st; i < en; i++) {
-            Vertex c = query.GetNeighbor(i);
-            size_t dst = data.GetNeighborStartOffset(v);
-            size_t den = data.GetNeighborEndOffset(v);
+          for(Vertex c : edg[u]) {
+            size_t st = data.GetNeighborStartOffset(v);
+            size_t en = data.GetNeighborEndOffset(v);
             bool cur = false;
-            for(size_t j = dst; j < den; j++) {
-              if(dp[c][data.GetNeighbor(j)]) {
+            for(size_t i = st; i < en; i++) {
+              if(dp[c][data.GetNeighbor(i)]) {
                 cur = true;
                 break;
               }
             }
+            
             if(!cur) {
               new_dp = false;
               break;
             }
           }
+          
           dp[u][v] = new_dp;
           if(dp[u][v])
             new_cand[u].push_back(v);
         }
-        my_cand[u] = new_cand[u];
       }
+      my_cand = new_cand;
 
       // further filtering
       const auto calc = [&](const Graph &g, Vertex u, Vertex v,
