@@ -12,8 +12,8 @@
 
 1. 논문에서 설명한 DAG DP를 적용합니다. 단, $q_D$를 사용하는 것이 아닌 Random하게 구성한 Rooted DAG를 사용합니다.
 2. 정점의 Local Characteristic을 사용하여 조건에 맞지 않는 정점을 Candidate set에서 제외합니다. 아래와 같은 조건들을 고려합니다.
-    * ㄹㄹ
-    * ㄹㄹ
+    * Query Graph의 각 정점 $u$에서 인접한 정점들의 Degree들을 모은 multiset을 생각합니다. 각 $v \in C(u)$에 대해, $v$에서 인접한 정점들의 Degree multiset이 $u$의 multiset을 Cover하지 않는다면 $v$를 $C(u)$에서 제거합니다. 여기서 multiset $A$가 $B$를 Cover한다는 것은 $A$의 각 원소를 자신보다 같거나 큰 $B$의 원소에 (중복 없이) 대응시킬 수 있다는 것입니다.
+    * Query Graph의 각 정점 $u$에서 인접한 정점들의 Label들을 모은 multiset을 생각합니다. 각 $v \in C(u)$에 대해, $v$에서 인접한 정점들의 Label multiset이 $u$의 multiset을 포함하지 않으면 (일반적인 multiset 포함관계) $v$를 $C(u)$에서 제거합니다.
 
 위 알고리즘은 `/executable` 폴더에 주어진 binary로 생성한 candidate set을 많은 경우에서 실제로 줄여줍니다. 특히 Data Graph가 Yeast인 경우 Candidate Set의 총 크기 합을 20~30% 정도 줄이는 경우가 빈번하게 발생함을 확인하였습니다. 이는 성능의 개선으로까지 이어집니다.
 
@@ -36,8 +36,15 @@
 
 ## 2. Backtracking
 
-내일 쓸 예정입니다.
-코드 마지막으로 시간 최적화 (벡터 -> 전역변수 배열) 하면 좋을듯
+백트래킹의 기본 골자는 논문에서 서술한 방법과 같습니다. Extendable한 정점 중 가장 적합한 것을 고를 때에는 $|C(u)|$를 기준으로 사용합니다. 백트래킹 과정은 아래와 같습니다.
+
+1. Query Graph의 모든 정점이 Embedding이 된 상태라면, 즉 Valid Embedding을 하나 찾았다면 출력한다.
+2. 그렇지 않다면, 현재 Extendable한 정점들 중 $|C(u)|$ 값이 가장 작은 정점을 새로 Extend할 정점으로 고른다.
+3. $C(u)$에 속한 각 $v$에 대해, $(u, v)$ Embedding을 Partial Embedding에 추가하고 함수를 재귀호출한다. 호출하기 전/후에 갱신된 Partial Embedding에 따라 $C(u)$를 적절히 변화시켜 준다.
+
+논문에 나온 방법과의 차이점은 이미 한 번 쓰인 Data Graph의 정점을 다시 쓰지 않기 위한 방법입니다. 논문에서는 3번 과정에서 $v$가 이미 쓰였다면 무시하는 식으로 구현을 하였는데, 저희는 $v$가 쓰일 때마다 아직 extend되지 않은 Query Graph의 정점 $w$들에 대해 $C(w)$에 $v$가 들어있다면 그때그때 지워주는 식으로 구현을 하였습니다. 이 방법의 장점은 $C(w)$의 크기 정보가 더 정확해지는 데 (쓸 수 없는 정점이 그때그때 바로 빠지므로) 있습니다.
+
+Data Graph의 $|V|$가 그렇게 크지 않은 데 착안하여, 간선이 연결되어 있는지에 대한 빠른 판별을 위해 인접 행렬을 추가로 구성하여 사용하였습니다.
 
 
 ## 3. Experiment Environment
